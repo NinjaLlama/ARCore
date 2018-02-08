@@ -47,7 +47,7 @@ public class FrameObjectData : PooledObject {
 	// Update is called once per frame
 	void Update () {
 		lifeTime--;
-		if (lifeTime == 0) {
+		if (lifeTime <= 0) {
 			Release ();
 		}
 	}

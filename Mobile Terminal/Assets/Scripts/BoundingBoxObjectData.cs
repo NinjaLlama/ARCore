@@ -86,7 +86,7 @@ public class BoundingBoxObjectData : PooledObject {
 		box.transform.LookAt (box.transform.position + Camera.main.transform.rotation * Vector3.forward,
 			Camera.main.transform.rotation * Vector3.up);
 			frameCount--;
-			if (frameCount == 0) {
+			if (frameCount <= 0) {
 				frameCount = 10;
 				Release();
 			}

@@ -1,19 +1,24 @@
 ﻿<Properties StartupItem="Assembly-CSharp.csproj">
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="Unity.Instance.Unity Editor" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\OnCameraFrame.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\AssetBundleFetcher.cs">
     <Files>
-      <File FileName="Assets\Scripts\OnCameraFrame.cs" Line="372" Column="59" />
-      <File FileName="Assets\Scripts\NdnRtc.cs" Line="132" Column="33" />
-      <File FileName="Assets\Scripts\AnnotationsFetcher.cs" Line="1" Column="1" />
-      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\TextureReader.cs" Line="68" Column="26" />
-      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\TextureReaderApi.cs" Line="55" Column="95" />
-      <File FileName="Assets\Scripts\FramePoolManager.cs" Line="36" Column="41" />
-      <File FileName="Assets\Scripts\BoundingBoxObjectData.cs" Line="86" Column="56" />
-      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\ComputerVisionController.cs" Line="84" Column="26" />
+      <File FileName="Assets\Scripts\OnCameraFrame.cs" Line="463" Column="31" />
+      <File FileName="Assets\Scripts\NdnRtc.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\AnnotationsFetcher.cs" Line="80" Column="1" />
+      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\TextureReader.cs" Line="1" Column="1" />
+      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\TextureReaderApi.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\FramePoolManager.cs" Line="1" Column="1" />
+      <File FileName="Assets\GoogleARCore\Examples\ComputerVision\Scripts\ComputerVisionController.cs" Line="1" Column="1" />
+      <File FileName="Assets\ObjectScript.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\BoundingBoxPoolManager.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\ConcurrentQueue.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\AssetBundleFetcher.cs" Line="32" Column="35" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
-    <BreakpointStore />
+    <BreakpointStore>
+      <Breakpoint file="C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Assets\Scripts\AssetBundleFetcher.cs" line="46" column="19" />
+    </BreakpointStore>
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />
 </Properties>

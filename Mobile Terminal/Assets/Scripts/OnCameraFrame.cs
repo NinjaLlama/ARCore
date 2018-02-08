@@ -20,9 +20,15 @@ public class OnCameraFrame : MonoBehaviour {
 	public System.DateTime begin;
 	public FramePoolManager frameMgr;
 	public BoundingBoxPoolManager boxMgr;
+	private FaceProcessor faceProcessor_;
 	private AnnotationsFetcher aFetcher_;
 	private AnnotationsFetcher openFaceFetcher_;
-	private ConcurrentQueue<Dictionary<int, FrameObjectData>> frameBuffer;
+	private AnnotationsFetcher openPoseFetcher_;
+	private AssetBundleFetcher assetFetcher_;
+
+	private ConcurrentQueue<Dictionary<int, FrameObjectData>> frameBufferYolo;
+	private ConcurrentQueue<Dictionary<int, FrameObjectData>> frameBufferOpenFace;
+	private ConcurrentQueue<Dictionary<int, FrameObjectData>> frameBufferOpenPose;
 	private static ConcurrentQueue<BoxData> boundingBoxBufferToCalc;
 	private static ConcurrentQueue<CreateBoxData> boundingBoxBufferToUpdate;
 	public List<CreateBoxData> boxData;
@@ -36,6 +42,7 @@ public class OnCameraFrame : MonoBehaviour {
 	public Dictionary<string, IKalmanWrapper> kalman;
 	public TextureReader TextureReaderComponent;
 	public ARCoreBackgroundRenderer BackgroundRenderer;
+	public List<GameObject> loadedObjects; 
 
 	void Awake () {
 		QualitySettings.vSyncCount = 0;  // VSync must be disabled
@@ -52,7 +59,9 @@ public class OnCameraFrame : MonoBehaviour {
 		//frameObjects = new Dictionary<long, FrameObjectData> ();
 		boxMgr = GameObject.FindObjectOfType<BoundingBoxPoolManager>();
 		timestamp = 0;
-		frameBuffer = new ConcurrentQueue<Dictionary<int, FrameObjectData>> ();
+		frameBufferYolo = new ConcurrentQueue<Dictionary<int, FrameObjectData>> ();
+		frameBufferOpenFace = new ConcurrentQueue<Dictionary<int, FrameObjectData>> ();
+		frameBufferOpenPose = new ConcurrentQueue<Dictionary<int, FrameObjectData>> ();
 		boundingBoxBufferToCalc = new ConcurrentQueue<BoxData> ();
 		boundingBoxBufferToUpdate = new ConcurrentQueue<CreateBoxData> ();
 		boxData = new List<CreateBoxData> ();
@@ -64,6 +73,7 @@ public class OnCameraFrame : MonoBehaviour {
 		calc.Start ();
 		labelColors = new Dictionary<string, Color> ();
 		kalman = new Dictionary<string, IKalmanWrapper> ();
+		loadedObjects = new List<GameObject>();
 
 		colors = new List<Color> {
 			new Color (255f/255, 109f/255, 124f/255),
@@ -81,15 +91,22 @@ public class OnCameraFrame : MonoBehaviour {
 		string serviceType = "object_recognizer";
 		string serviceInstance = "yolo"; // "yolo";
 		string serviceInstance2 = "openface"; // "yolo";
+		string serviceInstance3 = "openpose"; // "yolo";
 
 		NdnRtc.Initialize (rootPrefix, userId);
+		faceProcessor_ = new FaceProcessor();
+		faceProcessor_.start();
+
+		assetFetcher_ = new AssetBundleFetcher(faceProcessor_);
 
 		string servicePrefix = rootPrefix + "/" + userId + "/" + serviceType;
 		// AnnotationsFetcher instance might also be a singleton class
 		// and initialized/created somewhere else. here just as an example
-		aFetcher_ = new AnnotationsFetcher (servicePrefix, serviceInstance);
+		aFetcher_ = new AnnotationsFetcher (faceProcessor_, servicePrefix, serviceInstance);
 
-		openFaceFetcher_ = new AnnotationsFetcher (servicePrefix, serviceInstance2);
+		openFaceFetcher_ = new AnnotationsFetcher (faceProcessor_, servicePrefix, serviceInstance2);
+
+		openPoseFetcher_ = new AnnotationsFetcher (faceProcessor_, servicePrefix, serviceInstance3);
 
 		// setup CNL logging 
 		ILOG.J2CsMapping.Util.Logging.Logger.getLogger("").setLevel(ILOG.J2CsMapping.Util.Logging.Level.FINE);
@@ -167,6 +184,26 @@ public class OnCameraFrame : MonoBehaviour {
 							boxMgr.UpdateBoundingBoxObject (boundingBoxes [j], temp.position, temp.x, temp.y, temp.z, temp.label, temp.position);
 							Debug.Log ("Update bounding box: " + temp.label);
 							updatedBox = true;
+							Debug.Log("update model size: " + loadedObjects.Count);
+							for(int k = 0; k < loadedObjects.Count; k++)
+							{
+								float objectDistance = Vector2.Distance (Camera.main.WorldToViewportPoint(temp.position), Camera.main.WorldToViewportPoint(loadedObjects[k].transform.position));
+								if (objectDistance < 0.2 && loadedObjects[k].GetComponent<ObjectScript>().id == temp.label) {
+									Debug.Log("update model1: " + loadedObjects[k].GetComponent<ObjectScript>().timeToDestroy);
+									loadedObjects[k].gameObject.GetComponent<ObjectScript>().timeToDestroy = 20;
+									loadedObjects[k].transform.position = temp.position;
+									Debug.Log("update model2: " + loadedObjects[k].gameObject.GetComponent<ObjectScript>().model.name);
+
+								}
+								else if (loadedObjects[k].GetComponent<ObjectScript>().timeToDestroy <= 0){
+									GameObject holder = loadedObjects[k];
+									loadedObjects.Remove(loadedObjects[k]);
+									Destroy(holder);
+								}
+								else {
+									//carry on
+								}
+							}
 						}
 					}
 					//none of the labels looked like the wanted box, must be a new instance of this label
@@ -236,16 +273,77 @@ public class OnCameraFrame : MonoBehaviour {
 //		}
 //		Debug.Log (output);
 		if(boxData.Count > 0)
-			CreateBoxes(boxData);
+			loadedObjects = CreateBoxes(boxData);
 	}
 
-	public void CreateBoxes(List<CreateBoxData> boxes)
+	public List<GameObject> CreateBoxes(List<CreateBoxData> boxes)
 	{
 		//create bounding boxes
 		Color c = colors [UnityEngine.Random.Range (0, colors.Count)];
 		for (int i = 0; i < boxes.Count; i++) {
 			//Vector3 filteredPos = kalman.Update(boxes [i].position);
 			boxMgr.CreateBoundingBoxObject (boxes[i].position, boxes [i].x, boxes [i].y, boxes [i].z, boxes [i].label, c);
+			GameObject loadedObject;
+			switch (boxes [i].label)
+			{
+			case "bottle":
+				loadedObject = (GameObject)Instantiate(Resources.Load("Bottle"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "book":
+				loadedObject = (GameObject)Instantiate (Resources.Load ("Book"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObject.transform.localEulerAngles = new Vector3 (0, 0, 90);
+				loadedObjects.Add (loadedObject);
+				break;
+			case "motorcycle":
+				loadedObject = (GameObject)Instantiate (Resources.Load ("Motorcycle"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "car":
+				loadedObject = (GameObject)Instantiate(Resources.Load("Car"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "chair":
+				loadedObject = (GameObject)Instantiate (Resources.Load ("Chair"));
+				loadedObject.transform.position = boxes [i].position;
+				//loadedObject.transform.rotation = Quaternion.identity;
+				//loadedObject.transform.localEulerAngles = new Vector3 (-90, 0, 0);
+				loadedObjects.Add (loadedObject);
+				break;
+			case "couch":
+				loadedObject = (GameObject)Instantiate(Resources.Load("Couch"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "bench":
+				loadedObject = (GameObject)Instantiate(Resources.Load("Bench"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "dining table":
+				loadedObject = (GameObject)Instantiate(Resources.Load("DiningTable"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			case "tvmonitor":
+				loadedObject = (GameObject)Instantiate (Resources.Load ("TV"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObject.transform.Translate (0, 0, 1, Space.Self);
+				loadedObjects.Add (loadedObject);
+				Debug.Log ("tvmonitor");
+				break;
+			case "laptop":
+				loadedObject = (GameObject)Instantiate(Resources.Load("Laptop"));
+				loadedObject.transform.position = boxes [i].position;
+				loadedObjects.Add (loadedObject);
+				break;
+			default:
+				break;
+			}
 		}
 		boxData.Clear ();
 
@@ -257,6 +355,7 @@ public class OnCameraFrame : MonoBehaviour {
 			}
 		}
 		Debug.Log ("Kalman filters: " + kalman.Count);
+		return loadedObjects;
 	}
 
 	public void UpdateBoxes()
@@ -268,6 +367,15 @@ public class OnCameraFrame : MonoBehaviour {
 				boxMgr.UpdateBoundingBoxObject (kvp.Value[i], filteredPos, kvp.Value[i].x, kvp.Value[i].y, kvp.Value[i].z, kvp.Value[i].label.labelText, filteredPos);
 			}
 		}
+	}
+
+	public void fetchModel(string modelId)
+	{
+		var modelName = "/icear/content-publisher/avatars/"+modelId+".model";
+		assetFetcher_.fetch(modelName, delegate (AssetBundle assetBundle) {
+			Debug.Log ("Fetched asset bundle...");
+			// TODO: load asset bundle into the scene, cache it locally, etc...
+		});
 	}
 
 	public void OnImageAvailable(TextureReaderApi.ImageFormatType format, int width, int height, IntPtr pixelBuffer, int bufferSize)
@@ -291,7 +399,12 @@ public class OnCameraFrame : MonoBehaviour {
 			//frameMgr.CreateFrameObject (imgBuffer, publishedFrameNo, timestamp, Vector3.zero, Quaternion.identity, offset.m_uOffset, offset.m_vOffset, camForCalcThread);
 
 			//frameObjectBuffer.Enqueue (frameMgr.frameObjects [publishedFrameNo]);
-			frameBuffer.Enqueue (frameMgr.frameObjects);
+			frameBufferYolo.Enqueue (frameMgr.frameObjects);
+				frameBufferOpenFace.Enqueue (frameMgr.frameObjects);
+				frameBufferOpenPose.Enqueue (frameMgr.frameObjects);
+
+			//do peek instead of dequeue
+
 			Debug.Log("frame buffer enqueue: " + publishedFrameNo);
 			// spawn fetching task for annotations of this frame
 			// once successfully received, delegate callback will be called
@@ -303,7 +416,7 @@ public class OnCameraFrame : MonoBehaviour {
 				string[] testDebug = jsonArrayString.Split(']');
 				string formatDebug = testDebug[0] + "]";
 				try{
-				Dictionary<int, FrameObjectData> frameObjects = frameBuffer.Dequeue();
+				Dictionary<int, FrameObjectData> frameObjects = frameBufferYolo.Dequeue();
 				FrameObjectData temp;
 				if(frameObjects.TryGetValue(frameNumber, out temp))
 				{
@@ -344,7 +457,10 @@ public class OnCameraFrame : MonoBehaviour {
 					//Debug.Log ("Frame info points number: " + temp.numPoints);
 					Debug.Log ("Frame info points: " + temp.points.ToString());
 						Debug.Log("test time difference: " + (Mathf.Abs((float)(temp.timestamp - timestamp))) + " frame number: " + publishedFrameNo);
-
+							// example how to fetch model from content-publisher
+							// Therese, please check this is the right place in code where models should be requested
+							// (prob. model doesn't need to be fetched every frame for same object)
+							fetchModel("jefft0-test");
 					//int boxCount = Mathf.Min(data.annotationData.Length, 2);
 					int boxCount = data.annotationData.Length;
 
@@ -364,14 +480,18 @@ public class OnCameraFrame : MonoBehaviour {
 					annoData.ytop = new float[boxCount];
 					annoData.ybottom = new float[boxCount];
 					annoData.prob = new float[boxCount];
+//					float[] empty = new float[1]{-1};
+//					annoData.pose_keypoints = new List<float[]>();
+//					annoData.pose_keypoints.Add(empty);
+					//annoData.pose_keypoints = null;
 
 					for(int i = 0; i < boxCount; i++)
 					{
 						annoData.label[i] = data.annotationData[i].label;
-						annoData.xleft[i] = 1-data.annotationData[i].xright;
-						annoData.xright[i] = 1-data.annotationData[i].xleft;
-						annoData.ytop[i] = data.annotationData[i].ybottom;
-						annoData.ybottom[i] = data.annotationData[i].ytop;
+						annoData.xleft[i] = data.annotationData[i].xleft;
+						annoData.xright[i] = data.annotationData[i].xright;
+						annoData.ytop[i] = 1-data.annotationData[i].ytop;
+						annoData.ybottom[i] = 1-data.annotationData[i].ybottom;
 						annoData.prob[i] = data.annotationData[i].prob;
 					}
 
@@ -404,7 +524,7 @@ public class OnCameraFrame : MonoBehaviour {
 				string[] testDebug = jsonArrayString.Split(']');
 				string formatDebug = testDebug[0] + "]";
 				try{
-					Dictionary<int, FrameObjectData> frameObjects = frameBuffer.Dequeue();
+					Dictionary<int, FrameObjectData> frameObjects = frameBufferOpenFace.Dequeue();
 					FrameObjectData temp;
 					if(frameObjects.TryGetValue(frameNumber, out temp))
 					{
@@ -427,7 +547,7 @@ public class OnCameraFrame : MonoBehaviour {
 						int boxCount = data.annotationData.Length;
 
 						BoxData annoData = new BoxData();
-						Debug.Log("box created boxdata");
+						Debug.Log("openface box created boxdata");
 						annoData.frameNumber = frameNumber;
 						annoData.count = boxCount;
 						annoData.points = temp.points;
@@ -442,6 +562,7 @@ public class OnCameraFrame : MonoBehaviour {
 						annoData.ytop = new float[boxCount];
 						annoData.ybottom = new float[boxCount];
 						annoData.prob = new float[boxCount];
+						//annoData.pose_keypoints = null;
 
 						for(int i = 0; i < boxCount; i++)
 						{
@@ -477,6 +598,94 @@ public class OnCameraFrame : MonoBehaviour {
 				}
 			});
 
+			openPoseFetcher_.fetchAnnotation (publishedFrameNo, delegate(string jsonArrayString) {
+				int frameNumber = publishedFrameNo; // storing frame number locally
+				string debuglog = jsonArrayString.Replace(System.Environment.NewLine, " ");
+				Debug.Log("Received OpenPose annotations JSON (frame " + frameNumber + "): " + debuglog);
+//					string str = "{ \"openPose\": " + jsonArrayString + "}";
+//					OpenPose fromJson = JsonUtility.FromJson<OpenPose>(str);
+//					for(int i = 0; i < fromJson.openPose.Length; i++)
+//						Debug.Log("OpenPose fromjson output: " + fromJson.openPose[i].pose_keypoints.Length + ", " + fromJson.openPose[i].pose_keypoints[0]);
+//
+				try{
+					Dictionary<int, FrameObjectData> frameObjects = frameBufferOpenPose.Dequeue();
+					FrameObjectData temp;
+					if(frameObjects.TryGetValue(frameNumber, out temp))
+					{
+						string str = "{ \"openPose\": " + jsonArrayString + "}";
+						OpenPose fromJson = JsonUtility.FromJson<OpenPose>(str);
+						//Debug.Log("OpenPose fromjson output: " + fromJson.openPose[0].pose_keypoints.Length + ", " + fromJson.openPose[0].pose_keypoints[0]);
+
+//						for (int i = 0; i < data.annotationData.Length; i++)
+//						{
+//							//if(data.annotationData[i].prob >= 0.7f)
+//							{
+//								Debug.Log("openface test: " + data.annotationData.Length);
+//								Debug.Log("openface test label: " + data.annotationData[i].label + " test xleft: " + data.annotationData[i].xleft
+//									+ " test xright: " + data.annotationData[i].xright + " test ytop: " + (data.annotationData[i].ytop) + " test ybottom: " + (data.annotationData[i].ybottom));
+//								//						Debug.Log("test xleft: " + data.annotationData[i].xleft);
+//								//						Debug.Log("test xright: " + data.annotationData[i].xright);
+//								//						Debug.Log("test ytop: " + data.annotationData[i].ytop);
+//								//						Debug.Log("test ybottom: " + data.annotationData[i].ybottom);
+//							}
+//						}
+						//int boxCount = Mathf.Min(data.annotationData.Length, 2);
+						int boxCount = fromJson.openPose.Length;
+						Debug.Log("openpose length: " + boxCount);
+						if(boxCount > 0)
+						{
+							BoxData annoData = new BoxData();
+							Debug.Log("openpose box created boxdata");
+							annoData.frameNumber = frameNumber;
+							annoData.count = boxCount;
+							annoData.points = temp.points;
+							annoData.numPoints = temp.numPoints;
+							annoData.cam = temp.cam;
+							annoData.camPos = temp.camPos;
+							annoData.camRot = temp.camRot;
+							annoData.timestamp = temp.timestamp;
+							annoData.label = new string[boxCount];
+							annoData.xleft = new float[boxCount];
+							annoData.xright = new float[boxCount];
+							annoData.ytop = new float[boxCount];
+							annoData.ybottom = new float[boxCount];
+							annoData.prob = new float[boxCount];
+							annoData.pose_keypoints = new List<float[]>();
+
+							for(int i = 0; i < boxCount; i++)
+							{
+								//annoData.pose_keypoints[i] = new float[fromJson.openPose[i].pose_keypoints.Length];
+								annoData.pose_keypoints.Add(fromJson.openPose[i].pose_keypoints);
+								annoData.xleft[i] = fromJson.openPose[i].pose_keypoints[6];
+								annoData.xright[i] = fromJson.openPose[i].pose_keypoints[15];
+								annoData.ytop[i] = fromJson.openPose[i].pose_keypoints[7];
+								annoData.ybottom[i] = fromJson.openPose[i].pose_keypoints[37];
+								annoData.prob[i] = 1;
+								annoData.label[i] = "OpenPose";
+								Debug.Log("boxcount iteration: " + i + " out of " + (--boxCount));
+							}
+
+							Debug.Log("Received openpose annotations box enqueue");
+							//boxBufferToCalc.Enqueue(annoData);
+							boundingBoxBufferToCalc.Enqueue(annoData);
+						}
+					}
+					else
+					{
+						//frame object was not in the pool, lifetime expired
+						Debug.Log("Received openpose annotations but frame expired");
+					}
+				}
+				catch(System.Exception e)
+				{
+					Debug.Log("exception caught openpose annotations: " + e);
+					string debug = jsonArrayString.Replace(System.Environment.NewLine, " ");
+					Debug.Log("exception caught openpose string: " + debug);
+					string str = "{ \"openPose\": " + debug + "}";
+					Debug.Log("exception caught openpose string with format: " + str);
+				}
+			});
+
 		} else {
 			// frame was dropped by the encoder and was not published
 		}
@@ -495,168 +704,170 @@ public class OnCameraFrame : MonoBehaviour {
 
 			try
 			{
-			//Thread.Sleep (2);
-//			BoxData temp;
-//			Debug.Log ("box before dequeue");
-//			bool success = boxBufferToCalc.TryDequeue (out temp);
-//			Debug.Log ("box dequeue: " + success);
-//			if (success) {
-			if(boundingBoxBufferToCalc.Count > 0)
-			{
-				BoxData temp = boundingBoxBufferToCalc.Dequeue();
-				int boxCount = temp.count;
+				//Thread.Sleep (2);
+	//			BoxData temp;
+	//			Debug.Log ("box before dequeue");
+	//			bool success = boxBufferToCalc.TryDequeue (out temp);
+	//			Debug.Log ("box dequeue: " + success);
+	//			if (success) {
+				if(boundingBoxBufferToCalc.Count > 0)
+				{
+					BoxData temp = boundingBoxBufferToCalc.Dequeue();
+					int boxCount = temp.count;
 
-				//Vector3[] min = new Vector3[boxCount];
-				float[] averageZ = new float[boxCount];
-				int[] numWithinBox = new int[boxCount];
-				List<float>[] pointsInBounds = new List<float>[boxCount];
+					if(temp.pose_keypoints != null)
+						Debug.Log("pose calc " + temp.pose_keypoints[0].Length);
 
-				for (int i = 0; i < boxCount; i++) {
-					//min [i] = new Vector3 (100, 100, 100);
-					pointsInBounds[i] = new List<float>();
-					averageZ [i] = 0;
-					numWithinBox [i] = 0;
-				}
+					//Vector3[] min = new Vector3[boxCount];
+					float[] averageZ = new float[boxCount];
+					int[] numWithinBox = new int[boxCount];
+					List<float>[] pointsInBounds = new List<float>[boxCount];
 
-				List<Vector4> points = temp.points;
-				//int count = temp.numPoints;
-				int count = points.Count;
+					for (int i = 0; i < boxCount; i++) {
+						//min [i] = new Vector3 (100, 100, 100);
+						pointsInBounds[i] = new List<float>();
+						averageZ [i] = 0;
+						numWithinBox [i] = 0;
+					}
 
-				Debug.Log("Pointcloud count points: " + points.Count);
-				Debug.Log("Pointcloud count count: " + count);
+					List<Vector4> points = temp.points;
+					//int count = temp.numPoints;
+					int count = points.Count;
 
-				temp.cam.transform.position = temp.camPos;
-				temp.cam.transform.rotation = temp.camRot;
+					Debug.Log("Pointcloud count points: " + points.Count);
+					Debug.Log("Pointcloud count count: " + count);
 
-				Debug.Log ("Camera log: cam position" + temp.cam.transform.position.ToString());
-				Debug.Log ("Camera log: frame cam position" + temp.camPos.ToString());
-				Debug.Log ("Camera log: cam rotation" + temp.cam.transform.rotation.ToString());
-				Debug.Log ("Camera log: frame cam rotation" + temp.camRot.ToString());
+					temp.cam.transform.position = temp.camPos;
+					temp.cam.transform.rotation = temp.camRot;
 
-				Vector2[] centerPosXY = new Vector2[boxCount];
-				Vector2[] worldCenter = new Vector2[boxCount];
-				Vector3[] position = new Vector3[boxCount];
+					Debug.Log ("Camera log: cam position" + temp.cam.transform.position.ToString());
+					Debug.Log ("Camera log: frame cam position" + temp.camPos.ToString());
+					Debug.Log ("Camera log: cam rotation" + temp.cam.transform.rotation.ToString());
+					Debug.Log ("Camera log: frame cam rotation" + temp.camRot.ToString());
 
-				Vector2[] viewportTopLeft = new Vector2[boxCount];
-				Vector2[] viewportTopRight = new Vector2[boxCount];
-				Vector2[] viewportBottomLeft = new Vector2[boxCount];
-				Vector2[] viewportBottomRight = new Vector2[boxCount];
+					Vector2[] centerPosXY = new Vector2[boxCount];
+					Vector2[] worldCenter = new Vector2[boxCount];
+					Vector3[] position = new Vector3[boxCount];
 
-				Vector3[] worldTopLeft = new Vector3[boxCount];
-				Vector3[] worldTopRight = new Vector3[boxCount];
-				Vector3[] worldBottomLeft = new Vector3[boxCount];
-				Vector3[] worldBottomRight = new Vector3[boxCount];
+					Vector2[] viewportTopLeft = new Vector2[boxCount];
+					Vector2[] viewportTopRight = new Vector2[boxCount];
+					Vector2[] viewportBottomLeft = new Vector2[boxCount];
+					Vector2[] viewportBottomRight = new Vector2[boxCount];
 
-				float[] x = new float[boxCount];
-				float[] y = new float[boxCount];
-				float[] z = new float[boxCount];
+					Vector3[] worldTopLeft = new Vector3[boxCount];
+					Vector3[] worldTopRight = new Vector3[boxCount];
+					Vector3[] worldBottomLeft = new Vector3[boxCount];
+					Vector3[] worldBottomRight = new Vector3[boxCount];
 
-				
-				for (int i = 0; i < boxCount; i++) {
-
-
-					//calucate 4 viewport corners
-					viewportTopLeft [i] = new Vector2 (temp.xleft [i], temp.ytop [i]);
-					viewportTopRight [i] = new Vector2 (temp.xright [i], temp.ytop [i]);
-					viewportBottomLeft [i] = new Vector2 (temp.xleft [i], temp.ybottom [i]);
-					viewportBottomRight [i] = new Vector2 (temp.xright [i], temp.ybottom [i]);
+					float[] x = new float[boxCount];
+					float[] y = new float[boxCount];
+					float[] z = new float[boxCount];
 
 
-					//calculate center of box in viewport coords
-					centerPosXY [i] = new Vector2 (temp.xleft [i] + Mathf.Abs (viewportTopLeft [i].x - viewportTopRight [i].x) / 2,
-						temp.ybottom [i] + Mathf.Abs (viewportTopLeft [i].y - viewportBottomLeft [i].y) / 2);
+					for (int i = 0; i < boxCount; i++) {
 
-				}
+
+						//calucate 4 viewport corners
+						viewportTopLeft [i] = new Vector2 (temp.xleft [i], temp.ytop [i]);
+						viewportTopRight [i] = new Vector2 (temp.xright [i], temp.ytop [i]);
+						viewportBottomLeft [i] = new Vector2 (temp.xleft [i], temp.ybottom [i]);
+						viewportBottomRight [i] = new Vector2 (temp.xright [i], temp.ybottom [i]);
+
+
+						//calculate center of box in viewport coords
+						centerPosXY [i] = new Vector2 (temp.xleft [i] + Mathf.Abs (viewportTopLeft [i].x - viewportTopRight [i].x) / 2,
+							temp.ybottom [i] + Mathf.Abs (viewportTopLeft [i].y - viewportBottomLeft [i].y) / 2);
+
+					}
 
 					try{
-				//search points[]
-				for (int i = 0; i < count; i++) {
-					for (int j = 0; j < boxCount; j++) {
-//						//calculate center of box in world coords
-//						worldCenter [j] = temp.cam.ViewportToWorldPoint (new Vector2 (centerPosXY [j].x, centerPosXY [j].y));
-//						//find point in points[] that most nearly matches center position
-//						if (Vector2.Distance (new Vector2 (points [i].x, points [i].y), worldCenter [j]) < Vector2.Distance (new Vector2 (min [j].x, min [j].y), worldCenter [j])) {
-//							min [j] = points [i];
-//						}
-						//find if points[i] is outside of the bounding box
-						Vector3 viewportPoint = temp.cam.WorldToViewportPoint(points[i]);
-						if (viewportPoint.x < temp.xleft[j] || viewportPoint.x > temp.xright[j] || viewportPoint.y < temp.ybottom[j] || viewportPoint.y > temp.ytop[j]) {
-							//points[i] is out of the limits of the bounding box
-						} else {
-							//points[i] is in the bounding box
-							pointsInBounds[j].Add(points[i].z);
-							averageZ[j] += points[i].z;
-							numWithinBox[j]++;
+					//search points[]
+						for (int i = 0; i < count; i++) {
+							for (int j = 0; j < boxCount; j++) {
+		//						//calculate center of box in world coords
+		//						worldCenter [j] = temp.cam.ViewportToWorldPoint (new Vector2 (centerPosXY [j].x, centerPosXY [j].y));
+		//						//find point in points[] that most nearly matches center position
+		//						if (Vector2.Distance (new Vector2 (points [i].x, points [i].y), worldCenter [j]) < Vector2.Distance (new Vector2 (min [j].x, min [j].y), worldCenter [j])) {
+		//							min [j] = points [i];
+		//						}
+								//find if points[i] is outside of the bounding box
+								Vector3 viewportPoint = temp.cam.WorldToViewportPoint(points[i]);
+								if (viewportPoint.x < temp.xleft[j] || viewportPoint.x > temp.xright[j] || viewportPoint.y < temp.ybottom[j] || viewportPoint.y > temp.ytop[j]) {
+									//points[i] is out of the limits of the bounding box
+								} else {
+									//points[i] is in the bounding box
+									pointsInBounds[j].Add(points[i].z);
+									averageZ[j] += points[i].z;
+									numWithinBox[j]++;
+								}
+							}
 						}
-					}
-				}
 					}
 					catch(System.Exception e)
 					{
 						Debug.Log("exception caught here" + e.ToString());
 					}
 
-				for (int i = 0; i < boxCount; i++) {
-					float median;
-					float depth;
-					pointsInBounds [i].Sort ();
-					//median = pointsInBounds [i][pointsInBounds[i].Count / 2];
-						//Debug.Log("median = " + median);
-					//averageZ [i] /= numWithinBox [i];
-					if (!(pointsInBounds[i].Count == 0)) {
-						//float depth = Mathf.Abs(min [i].z);
-							Debug.Log("Median: Length of float array: " + pointsInBounds[i].Count);
-							Debug.Log("Median: Index of median: " + pointsInBounds[i].Count / 2);
-						median = pointsInBounds [i][pointsInBounds[i].Count / 2];
-							Debug.Log("Median: " + median);
-						depth = Mathf.Abs (median);
-						//float depth = Mathf.Abs (averageZ [i]);
-						if (depth < 0.5f)
-							depth = 0.5f;
-							
-						//calculate center of box in world coords
-						position [i] = temp.cam.ViewportToWorldPoint (new Vector3 (centerPosXY [i].x, centerPosXY [i].y, depth));
+					for (int i = 0; i < boxCount; i++) {
+						float median;
+						float depth;
+						pointsInBounds [i].Sort ();
+						//median = pointsInBounds [i][pointsInBounds[i].Count / 2];
+							//Debug.Log("median = " + median);
+						//averageZ [i] /= numWithinBox [i];
+						if (!(pointsInBounds[i].Count == 0)) {
+							//float depth = Mathf.Abs(min [i].z);
+								Debug.Log("Median: Length of float array: " + pointsInBounds[i].Count);
+								Debug.Log("Median: Index of median: " + pointsInBounds[i].Count / 2);
+							median = pointsInBounds [i][pointsInBounds[i].Count / 2];
+								Debug.Log("Median: " + median);
+							depth = Mathf.Abs (median);
+							//float depth = Mathf.Abs (averageZ [i]);
+							if (depth < 0.5f)
+								depth = 0.5f;
+								
+							//calculate center of box in world coords
+							position [i] = temp.cam.ViewportToWorldPoint (new Vector3 (centerPosXY [i].x, centerPosXY [i].y, depth));
 
-						Debug.Log ("box position: " + position.ToString ());
-						//Debug.Log ("box: found min " + min.ToString ());
+							Debug.Log ("box position: " + position.ToString ());
+							//Debug.Log ("box: found min " + min.ToString ());
 
-						//calculate Z value for world corners
-						worldTopLeft [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportTopLeft [i].x, viewportTopLeft [i].y, depth));
-						worldTopRight [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportTopRight [i].x, viewportTopRight [i].y, depth));
-						worldBottomLeft [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportBottomLeft [i].x, viewportBottomLeft [i].y, depth));
-						worldBottomRight [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportBottomRight [i].x, viewportBottomRight [i].y, depth));
+							//calculate Z value for world corners
+							worldTopLeft [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportTopLeft [i].x, viewportTopLeft [i].y, depth));
+							worldTopRight [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportTopRight [i].x, viewportTopRight [i].y, depth));
+							worldBottomLeft [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportBottomLeft [i].x, viewportBottomLeft [i].y, depth));
+							worldBottomRight [i] = temp.cam.ViewportToWorldPoint (new Vector3 (viewportBottomRight [i].x, viewportBottomRight [i].y, depth));
 
 
-						//calculate x, y, z size values
-						x [i] = Mathf.Abs (Vector3.Distance (worldTopLeft [i], worldTopRight [i]));
-						y [i] = Mathf.Abs (Vector3.Distance (worldTopLeft [i], worldBottomLeft [i]));
-						z [i] = 0;
+							//calculate x, y, z size values
+							x [i] = Mathf.Abs (Vector3.Distance (worldTopLeft [i], worldTopRight [i]));
+							y [i] = Mathf.Abs (Vector3.Distance (worldTopLeft [i], worldBottomLeft [i]));
+							z [i] = 0;
 
-						if(temp.prob[i] >= 0.6f)
-						{
-							CreateBoxData boxData = new CreateBoxData ();
-							boxData.label = temp.label [i];
-							boxData.position = position [i];
-							boxData.x = x [i];
-							boxData.y = y [i];
-							boxData.z = z [i];
-							boxData.cam = temp.cam;
-							boxData.frameNum = temp.frameNumber;
-							boxData.timestamp = temp.timestamp;
-							//boxBufferToUpdate.Enqueue (boxData);
-							boundingBoxBufferToUpdate.Enqueue (boxData);
+							if(temp.prob[i] >= 0.6f)
+							{
+								CreateBoxData boxData = new CreateBoxData ();
+								boxData.label = temp.label [i];
+								boxData.position = position [i];
+								boxData.x = x [i];
+								boxData.y = y [i];
+								boxData.z = z [i];
+								boxData.cam = temp.cam;
+								boxData.frameNum = temp.frameNumber;
+								boxData.timestamp = temp.timestamp;
+								//boxBufferToUpdate.Enqueue (boxData);
+								boundingBoxBufferToUpdate.Enqueue (boxData);
+							}
 						}
-
 					}
 				}
 			}
-		}
-		catch(System.Exception e)
-		{
+			catch(System.Exception e)
+			{
 				Debug.Log("exception caught" + e.ToString());
+			}
 		}
 	}
-}
 }
 
 [System.Serializable]
@@ -675,6 +886,22 @@ public struct AnnotationData
 
 	public ArrayEntry[] annotationData;
 }
+
+[System.Serializable]
+public struct OpenPose
+{
+	[System.Serializable]
+	public struct Annotation
+	{
+		public float[] pose_keypoints;
+		public float[] face_keypoints;
+		public float[] hand_left_keypoints;
+		public float[] hand_right_keypoints;
+	}
+
+	public Annotation[] openPose;
+}
+	
 
 public struct CreateBoxData
 {
@@ -704,4 +931,5 @@ public struct BoxData
 	public float[] prob;
 	public string[] label;
 	public double timestamp;
+	public List<float[]> pose_keypoints;
 }

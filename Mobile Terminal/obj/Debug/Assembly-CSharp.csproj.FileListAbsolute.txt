@@ -1,5 +1,6 @@
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\Assembly-CSharp.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\Assembly-CSharp.pdb
+C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\cnl-dot-net.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\ndn-dot-net.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\nunit.framework.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\TextMeshPro-2017.3-1.0.56-Editor.dll
@@ -64,6 +65,5 @@ C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.Spati
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEngine.SpatialTracking.xml
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.VR.xml
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.iOS.Extensions.Xcode.xml
-C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.csprojResolveAssemblyReference.cache
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.pdb
