@@ -31,6 +31,7 @@ public class OnCameraFrame : MonoBehaviour {
 	private ConcurrentQueue<Dictionary<int, FrameObjectData>> frameBufferOpenPose;
 	private static ConcurrentQueue<BoxData> boundingBoxBufferToCalc;
 	private static ConcurrentQueue<CreateBoxData> boundingBoxBufferToUpdate;
+	private static ConcurrentQueue<Dictionary<string, AssetBundle>> assetBundles;
 	public List<CreateBoxData> boxData;
 	//public RingBuffer<FrameObjectData> frameObjectBuffer;
 	//public static RingBuffer<BoxData> boxBufferToCalc;
@@ -43,6 +44,8 @@ public class OnCameraFrame : MonoBehaviour {
 	public TextureReader TextureReaderComponent;
 	public ARCoreBackgroundRenderer BackgroundRenderer;
 	public List<GameObject> loadedObjects; 
+	public Dictionary<string, GameObject> savedObjects;
+
 
 	void Awake () {
 		QualitySettings.vSyncCount = 0;  // VSync must be disabled
@@ -64,6 +67,7 @@ public class OnCameraFrame : MonoBehaviour {
 		frameBufferOpenPose = new ConcurrentQueue<Dictionary<int, FrameObjectData>> ();
 		boundingBoxBufferToCalc = new ConcurrentQueue<BoxData> ();
 		boundingBoxBufferToUpdate = new ConcurrentQueue<CreateBoxData> ();
+		assetBundles = new ConcurrentQueue<Dictionary<string, AssetBundle>> ();
 		boxData = new List<CreateBoxData> ();
 //		frameObjectBuffer = new RingBuffer<FrameObjectData> (100000);
 //		boxBufferToCalc = new RingBuffer<BoxData> (100000);
@@ -74,6 +78,7 @@ public class OnCameraFrame : MonoBehaviour {
 		labelColors = new Dictionary<string, Color> ();
 		kalman = new Dictionary<string, IKalmanWrapper> ();
 		loadedObjects = new List<GameObject>();
+		savedObjects = new Dictionary<string, GameObject> ();
 
 		colors = new List<Color> {
 			new Color (255f/255, 109f/255, 124f/255),
@@ -122,8 +127,31 @@ public class OnCameraFrame : MonoBehaviour {
 	void Update()
 	{
 		if (Input.touchCount == 1) {
+			//fetchModel("bottle");
 			//spawnBox();
 		}
+		if (assetBundles.Count > 0) {
+			Dictionary<string, AssetBundle> assets = assetBundles.Dequeue ();
+			string bundles = "";
+			foreach (KeyValuePair<string, AssetBundle> kvp in assets) {
+				bundles = bundles + kvp.Key + ", ";
+				AssetBundle asset = kvp.Value;
+				GameObject test = asset.LoadAsset<GameObject> (kvp.Key);
+				savedObjects.Add (kvp.Key, test);
+				//test.transform.position = new Vector3 (UnityEngine.Random.Range (0, 1), UnityEngine.Random.Range (0, 1), UnityEngine.Random.Range (0, 1));
+				//Instantiate (test);
+			}
+			assetBundles.Enqueue (assets);
+			Debug.Log ("loaded asset names: " + bundles);
+		}
+//		int maxBundle = assetBundles.Count;
+//		for (int i = 0; i < maxBundle; i++) {
+//			AssetBundle asset = assetBundles.Dequeue ();
+//			GameObject test = asset.LoadAsset<GameObject>("bottle");
+//			test.transform.position = Vector3.zero;
+//			Instantiate (test);
+//			Debug.Log ("Loaded asset bundle from local");
+//		}
 
 //		foreach( KeyValuePair<string, List<BoundingBox>> kvp in boxMgr.boundingBoxObjects )
 //		{
@@ -151,8 +179,8 @@ public class OnCameraFrame : MonoBehaviour {
 //			}
 //		}
 
-		int max = boundingBoxBufferToUpdate.Count;
-		for(int i = 0; i < max; i++) {
+		int maxBox = boundingBoxBufferToUpdate.Count;
+		for(int i = 0; i < maxBox; i++) {
 			CreateBoxData temp = boundingBoxBufferToUpdate.Dequeue();
 			Debug.Log("frame number for box: " + temp.frameNum);
 			textbox.text = "Yolo " + temp.frameNum;
@@ -283,66 +311,74 @@ public class OnCameraFrame : MonoBehaviour {
 		for (int i = 0; i < boxes.Count; i++) {
 			//Vector3 filteredPos = kalman.Update(boxes [i].position);
 			boxMgr.CreateBoundingBoxObject (boxes[i].position, boxes [i].x, boxes [i].y, boxes [i].z, boxes [i].label, c);
-			GameObject loadedObject;
-			switch (boxes [i].label)
-			{
-			case "bottle":
-				loadedObject = (GameObject)Instantiate(Resources.Load("Bottle"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "book":
-				loadedObject = (GameObject)Instantiate (Resources.Load ("Book"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObject.transform.localEulerAngles = new Vector3 (0, 0, 90);
-				loadedObjects.Add (loadedObject);
-				break;
-			case "motorcycle":
-				loadedObject = (GameObject)Instantiate (Resources.Load ("Motorcycle"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "car":
-				loadedObject = (GameObject)Instantiate(Resources.Load("Car"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "chair":
-				loadedObject = (GameObject)Instantiate (Resources.Load ("Chair"));
-				loadedObject.transform.position = boxes [i].position;
-				//loadedObject.transform.rotation = Quaternion.identity;
-				//loadedObject.transform.localEulerAngles = new Vector3 (-90, 0, 0);
-				loadedObjects.Add (loadedObject);
-				break;
-			case "couch":
-				loadedObject = (GameObject)Instantiate(Resources.Load("Couch"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "bench":
-				loadedObject = (GameObject)Instantiate(Resources.Load("Bench"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "dining table":
-				loadedObject = (GameObject)Instantiate(Resources.Load("DiningTable"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			case "tvmonitor":
-				loadedObject = (GameObject)Instantiate (Resources.Load ("TV"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObject.transform.Translate (0, 0, 1, Space.Self);
-				loadedObjects.Add (loadedObject);
-				Debug.Log ("tvmonitor");
-				break;
-			case "laptop":
-				loadedObject = (GameObject)Instantiate(Resources.Load("Laptop"));
-				loadedObject.transform.position = boxes [i].position;
-				loadedObjects.Add (loadedObject);
-				break;
-			default:
-				break;
+//			if (boxes [i].label == "bottle") {
+//				loadedObjects[0].transform.position = boxes [i].position;
+//				Instantiate (loadedObjects[0]);
+//			}
+			if (assetBundles.Count > 0) {
+				Dictionary<string, AssetBundle> assets = assetBundles.Dequeue ();
+				GameObject loadedObject;
+				switch (boxes [i].label)
+				{
+				case "bottle":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					Debug.Log ("loaded bottle from asset");
+					break;
+				case "book":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObject.transform.localEulerAngles = new Vector3 (0, 0, 90);
+					loadedObjects.Add (loadedObject);
+					break;
+				case "motorcycle":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				case "car":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				case "chair":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					//loadedObject.transform.rotation = Quaternion.identity;
+					//loadedObject.transform.localEulerAngles = new Vector3 (-90, 0, 0);
+					loadedObjects.Add (loadedObject);
+					break;
+				case "couch":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				case "bench":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				case "dining table":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				case "tvmonitor":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObject.transform.Translate (0, 0, 1, Space.Self);
+					loadedObjects.Add (loadedObject);
+					break;
+				case "laptop":
+					loadedObject = savedObjects[boxes [i].label];
+					loadedObject.transform.position = boxes [i].position;
+					loadedObjects.Add (loadedObject);
+					break;
+				default:
+					break;
+				}
+				assetBundles.Enqueue (assets);
 			}
 		}
 		boxData.Clear ();
@@ -371,10 +407,73 @@ public class OnCameraFrame : MonoBehaviour {
 
 	public void fetchModel(string modelId)
 	{
-		var modelName = "/icear/content-publisher/avatars/"+modelId+".model";
+		var modelName = "/icear/content-publisher/avatars/"+modelId;
+//		string path = Application.streamingAssetsPath;
+//		AssetBundle aBundle = new AssetBundle ();
+//		Debug.Log ("asset path string: " + Application.streamingAssetsPath);
+//		AssetBundleCreateRequest loadBundle = AssetBundle.LoadFromFileAsync (path + "/" + modelId);
+//		aBundle = loadBundle.assetBundle;
+//		GameObject test = aBundle.LoadAsset<GameObject>(modelId);
+//		test.transform.position = Vector3.zero;
+//		Instantiate (test);
+//		Debug.Log ("Loaded asset bundle from local");
+
 		assetFetcher_.fetch(modelName, delegate (AssetBundle assetBundle) {
 			Debug.Log ("Fetched asset bundle...");
+			try{
 			// TODO: load asset bundle into the scene, cache it locally, etc...
+				if(assetBundle != null)
+				{
+//					Debug.Log("Asset bundle: " + assetBundle.Contains(modelId));
+//					Debug.Log("Asset bundle name: " + assetBundle.name);
+//					string contents = "";
+//					string[] names = assetBundle.GetAllAssetNames();
+//					for (int i = 0; i < names.Length; i++){
+//						contents = names[i] + ", " + contents;
+//					}
+//					Debug.Log("Asset bundle contents: " + contents);
+//					//test = assetBundle.LoadAsset("bottle") as GameObject;
+//					GameObject test = assetBundle.LoadAsset<GameObject>(modelId);
+//					//GameObject[] objectArray = assetBundle.LoadAllAssets<GameObject>();
+//					test.transform.position = Vector3.zero;
+//					//loadedObjects.Add(test);
+//					//testModel = assetBundle;
+//					//assetBundle.Unload(false);
+//					Debug.Log("loaded asset bundle ");
+					if(assetBundles.Count > 0)
+					{
+						Dictionary<string, AssetBundle> assets = assetBundles.Dequeue();
+						AssetBundle temp = null;
+						if(assets.TryGetValue(modelId, out temp))
+						{
+							//we already have this assetbundle, do nothing
+							Debug.Log("Already have asset bundle");
+						}
+						else
+						{
+							//modelId isn't in dictionary, add it
+							assets.Add(modelId, assetBundle);
+							Debug.Log("added assetbundle to dictionary");
+						}
+						assetBundles.Enqueue(assets);
+					}
+					else
+					{
+						Dictionary<string, AssetBundle> assets = new Dictionary<string, AssetBundle>();
+						assets.Add(modelId, assetBundle);
+						assetBundles.Enqueue(assets);
+						Debug.Log("added dictionary to assetbundle");
+					}
+				}
+				else{
+					//assetBundle.Unload(false);
+					Debug.Log("Asset bundle is null");
+				}
+			}
+			catch (System.Exception e)
+			{
+				Debug.Log("Asset bundle exception: " + e);
+			}
 		});
 	}
 
@@ -460,7 +559,8 @@ public class OnCameraFrame : MonoBehaviour {
 							// example how to fetch model from content-publisher
 							// Therese, please check this is the right place in code where models should be requested
 							// (prob. model doesn't need to be fetched every frame for same object)
-							fetchModel("jefft0-test");
+
+								//fetchModel("bottle");
 					//int boxCount = Mathf.Min(data.annotationData.Length, 2);
 					int boxCount = data.annotationData.Length;
 
@@ -493,6 +593,7 @@ public class OnCameraFrame : MonoBehaviour {
 						annoData.ytop[i] = 1-data.annotationData[i].ytop;
 						annoData.ybottom[i] = 1-data.annotationData[i].ybottom;
 						annoData.prob[i] = data.annotationData[i].prob;
+						fetchModel(data.annotationData[i].label);
 					}
 
 					Debug.Log("Received annotations box enqueue");

@@ -412,7 +412,7 @@ GameObject:
   - component: {fileID: 95568519475238560}
   - component: {fileID: 114860905586276698}
   m_Layer: 0
-  m_Name: Skeleton
+  m_Name: skeleton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

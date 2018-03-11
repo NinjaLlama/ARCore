@@ -65,5 +65,6 @@ C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.Spati
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEngine.SpatialTracking.xml
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.VR.xml
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\Temp\bin\Debug\UnityEditor.iOS.Extensions.Xcode.xml
+C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.csprojResolveAssemblyReference.cache
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.dll
 C:\Users\pudgy\Documents\ARCore\Mobile Terminal\obj\Debug\Assembly-CSharp.pdb

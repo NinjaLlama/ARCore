@@ -127,7 +127,6 @@
      <Compile Include="Assets\Kalman\MatrixKalmanWrapper.cs" />
      <Compile Include="Assets\Kalman\SimpleKalmanWrapper.cs" />
      <Compile Include="Assets\Kalman\Simulate\GuassianRandom.cs" />
-     <Compile Include="Assets\ObjectScript.cs" />
      <Compile Include="Assets\Scripts\AnnotationsFetcher.cs" />
      <Compile Include="Assets\Scripts\AssetBundleFetcher.cs" />
      <Compile Include="Assets\Scripts\BoundingBoxObjectData.cs" />
@@ -147,6 +146,7 @@
      <Compile Include="Assets\Scripts\LenseObjects.cs" />
      <Compile Include="Assets\Scripts\NdnRtc.cs" />
      <Compile Include="Assets\Scripts\ObjectPool.cs" />
+     <Compile Include="Assets\Scripts\ObjectScript.cs" />
      <Compile Include="Assets\Scripts\OnCameraFrame.cs" />
      <Compile Include="Assets\Scripts\PooledObject.cs" />
      <Compile Include="Assets\Scripts\RingBuffer.cs" />
@@ -307,10 +307,6 @@
  <Reference Include="UnityEditor.Purchasing">
  <HintPath>C:/Users/pudgy/AppData/LocalLow/Unity/cache/packages/packages.unity.com/com.unity.purchasing@0.0.19/Editor/UnityEditor.Purchasing.dll</HintPath>
  </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="Unity.AssetBundleBrowser.Editor.csproj">
-      <Project>{1EE4CE58-A5E5-F64D-05C8-C1344FD62EA2}</Project>      <Name>Unity.AssetBundleBrowser.Editor</Name>    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

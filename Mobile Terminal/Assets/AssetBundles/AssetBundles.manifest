@@ -1,0 +1,34 @@
+ManifestFileVersion: 0
+CRC: 3183167261
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: bench
+      Dependencies: {}
+    Info_1:
+      Name: book
+      Dependencies: {}
+    Info_2:
+      Name: bottle
+      Dependencies: {}
+    Info_3:
+      Name: car
+      Dependencies: {}
+    Info_4:
+      Name: chair
+      Dependencies: {}
+    Info_5:
+      Name: couch
+      Dependencies: {}
+    Info_6:
+      Name: diningtable
+      Dependencies: {}
+    Info_7:
+      Name: laptop
+      Dependencies: {}
+    Info_8:
+      Name: motorcycle
+      Dependencies: {}
+    Info_9:
+      Name: tv
+      Dependencies: {}

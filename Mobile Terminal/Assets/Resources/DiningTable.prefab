@@ -23,7 +23,7 @@ GameObject:
   - component: {fileID: 23718831671629818}
   - component: {fileID: 114159757439953904}
   m_Layer: 0
-  m_Name: DiningTable
+  m_Name: diningTable
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

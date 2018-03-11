@@ -1,0 +1,36 @@
+ManifestFileVersion: 0
+CRC: 3363765860
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: f66323f6435abc786b4c9d3859bfe367
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 1f7d3b68e140c1f40f8e273131ea7659
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 23
+  Script: {instanceID: 0}
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 33
+  Script: {instanceID: 0}
+- Class: 43
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+- Class: 64
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: 345219b36c3d8bd4d92bbceffa598087, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+Assets:
+- Assets/Resources/tv.prefab
+Dependencies: []
